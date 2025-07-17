@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Tab</title>
+    <link rel="icon" type="image/png" href="imgs/48.png">
+    <link href="main.82e72700.css" rel="stylesheet">
+</head>
+
+<body>
+    <div id="wallpaper" class="wallpaper"></div>
+
+    <main id="app-container" class="app-container">
+        <header class="app-header">
+            <button id="settings-btn" class="icon-btn" aria-label="Open Settings">
+                <i class="icon-settings"></i>
+            </button>
+        </header>
+
+        <section class="search-container" role="search">
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="Search" spellcheck="false" autocomplete="off"
+                    aria-label="Search Input">
+                <button id="search-btn" class="search-submit-btn" aria-label="Submit Search">
+                    <i class="icon-magnifier"></i>
+                </button>
+            </div>
+        </section>
+
+        <footer class="app-footer">
+            <div id="icons" class="icons-section">
+                <button id="icons-prev" class="icons-nav-btn" aria-label="Previous Icons Page" disabled>
+                    <i class="icon-left"></i>
+                </button>
+                <div id="icons-container" class="icons-container">
+                    <!-- Icons will be rendered here -->
+                </div>
+                <button id="icons-next" class="icons-nav-btn" aria-label="Next Icons Page">
+                    <i class="icon-right"></i>
+                </button>
+            </div>
+
+        </footer>
+
+
+
+    </main>
+    <div class="clock-container">
+        <div id="clock-time" class="clock-time"></div>
+        <div id="clock-date" class="clock-date"></div>
+    </div>
+    <aside id="settings-panel" class="settings-panel">
+        <div class="settings-header">
+            <h2>Settings</h2>
+            <button id="settings-close-btn" class="icon-btn" aria-label="Close Settings">
+                <i class="icon-close"></i>
+            </button>
+        </div>
+        <div id="settings-content" class="settings-content">
+            <!-- Settings will be rendered here -->
+            <div class="settings-group">
+                <h3>Custom Links</h3>
+                <div id="custom-links-list" class="custom-links-list">
+                    <!-- Custom links will be rendered here -->
+                </div>
+                <div class="form-item">
+                    <label for="custom-link-title-input">Title</label>
+                    <input type="text" id="custom-link-title-input" placeholder="e.g., My Portfolio">
+                </div>
+                <div class="form-item">
+                    <label for="custom-link-url-input">URL</label>
+                    <input type="url" id="custom-link-url-input" placeholder="e.g., https://example.com">
+                </div>
+                <div class="add-link-actions">
+                    <div class="form-item form-item--inline">
+                        <input type="checkbox" id="nas-link-checkbox" class="nas-link-checkbox">
+                        <label for="nas-link-checkbox">NAS Link</label>
+                    </div>
+                    <button id="add-link-btn" class="button">Add Link</button>
+                </div>
+            </div>
+
+            <hr class="settings-divider">
+
+            <div class="settings-add-group">
+                <h3>Add Subscription</h3>
+                <div class="form-item">
+                    <label for="group-name-input">Group Name</label>
+                    <input type="text" id="group-name-input" placeholder="e.g., Nature">
+                </div>
+                <div class="form-item">
+                    <label for="group-path-input">URL Path</label>
+                    <input type="text" id="group-path-input" placeholder="e.g., http://my-nas/images/">
+                </div>
+                <div class="form-item">
+                    <label for="group-items-input">Image IDs (semicolon-separated)</label>
+                    <textarea id="group-items-input" rows="5" placeholder="image1.jpg;image2.png;..."></textarea>
+                </div>
+                <button id="add-group-btn" class="button">Add Group</button>
+            </div>
+        </div>
+    </aside>
+
+    <dialog id="gallery-dialog" class="gallery-dialog">
+        <div class="gallery-header">
+            <h2>Gallery</h2>
+            <button id="gallery-close-btn" class="icon-btn" aria-label="Close Gallery">
+                <i class="icon-close"></i>
+            </button>
+        </div>
+        <div id="gallery-grid" class="gallery-grid">
+            <!-- Gallery images will be rendered here -->
+        </div>
+    </dialog>
+
+    <!-- Templates for dynamic content -->
+    <template id="icon-template">
+        <a class="icon-item" target="_blank" rel="noopener noreferrer">
+            <div class="icon-img-wrapper">
+                <i class="icon-img"></i>
+            </div>
+            <span class="icon-label"></span>
+        </a>
+    </template>
+
+    <template id="gallery-item-template">
+        <button class="gallery-item-btn" aria-label="Set as wallpaper">
+            <img class="gallery-img" src="" alt="Wallpaper thumbnail" loading="lazy">
+        </button>
+    </template>
+
+    <template id="setting-item-template">
+        <div class="setting-item">
+            <div class="setting-item-header">
+                <label class="setting-label"></label>
+                <label class="switch">
+                    <input type="checkbox" class="switch-checkbox">
+                    <span class="switch-slider"></span>
+                </label>
+            </div>
+            <div class="setting-item-content">
+                <div class="form-item">
+                    <label class="form-item-label"></label>
+                    <div class="select-wrapper">
+                        <select class="select-box"></select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="custom-link-item-template">
+        <div class="custom-link-item">
+            <div class="custom-link-info">
+                <span class="custom-link-title"></span>
+                <span class="custom-link-url"></span>
+            </div>
+            <button class="delete-link-btn icon-btn" aria-label="Delete Link">
+                <i class="icon-delete"></i>
+            </button>
+        </div>
+    </template>
+
+    <script src="main.82e72700.js" type="module"></script>
+</body>
+
+</html>

@@ -1,0 +1,36 @@
+
+{
+   "manifest_version": 3,
+   "name": "__MSG_ext_name__",
+   "description": "__MSG_ext_desc__",
+   "version": "2.2.5.0",
+   "minimum_chrome_version": "88",
+   "action": {
+      "default_icon": {
+         "48": "icons/48.png"
+      },
+      "default_title": "__MSG_ext_name__"
+   },
+   "background": {
+      "service_worker": "pages/background/index.js"
+   },
+   "chrome_url_overrides": {
+      "newtab": "pages/newtab/index.html"
+   },
+   "default_locale": "zh_CN",
+   "icons": {
+      "128": "icons/128.png",
+      "48": "icons/48.png"
+   },
+   "host_permissions": [
+      "*://www.google.com/*",
+      "*://127.0.0.1/*",
+      "*://localhost/*"
+   ],
+   "permissions": [
+      "topSites",
+      "storage"
+   ],
+   "offline_enabled": true,
+   "update_url": "https://127.0.0.1"
+}
