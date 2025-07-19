@@ -331,7 +331,6 @@ class App {
         if (!btn) return;
         const path = btn.dataset.path;
         this._setWallpaper(path);
-        this._applySettings();
         this.dom.galleryDialog.close();
     }
     
@@ -390,7 +389,18 @@ class App {
     }
     
     _setWallpaper(path) {
-        this.dom.wallpaper.style.backgroundImage = `url("${path}")`;
+        const img = new Image();
+        img.onload = () => {
+            // This function is called only when the image has fully loaded.
+            // By setting the background image here, we ensure the image is ready
+            // and avoid the "flash" of an empty background.
+            this.dom.wallpaper.style.backgroundImage = `url("${path}")`;
+        };
+        img.onerror = () => {
+            console.error(`Failed to load wallpaper: ${path}`);
+            // Optionally, handle the error, e.g., by not changing the wallpaper.
+        };
+        img.src = path; // This starts the image download.
     }
 
     _setRandomWallpaper() {

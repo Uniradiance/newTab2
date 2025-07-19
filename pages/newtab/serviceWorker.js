@@ -1,75 +1,81 @@
 
 (function(){
 	
-	const CACHE_NAME = 'v1';
+	const CACHE_NAME = 'v3-dynamic-content'; // Bump version to trigger update
 
-	this.addEventListener('install', function (event) {
-		// Ensures the install event waits until the cache is opened.
-		event.waitUntil(
-			caches.open(CACHE_NAME)
-		);
+	// On install, the service worker is activated.
+	// Pre-caching of local extension files is not needed (and unsupported) as they are part of the package.
+	// We'll use skipWaiting to activate the new SW immediately.
+	self.addEventListener('install', function (event) {
+		console.log('ServiceWorker: install event in progress.');
+		event.waitUntil(self.skipWaiting());
 	});
 						
-	
+	// On fetch, use a cache-first strategy for remote resources (like wallpapers and favicons).
 	self.addEventListener('fetch', function(event) {
-		// For GET requests, use a cache-first strategy.
-		// The Cache API only supports http/https schemes, so we must filter for those.
-		if (event.request.method === 'GET' && (event.request.url.startsWith('http:') || event.request.url.startsWith('https://'))) {
+		const isGet = event.request.method === 'GET';
+		// Only cache requests to http/https protocols (i.e., network requests).
+		// This avoids trying to cache chrome-extension:// URLs, which is not supported and not necessary.
+		const isCacheable = isGet && event.request.url.startsWith('http');
+	
+		if (isCacheable) {
 			event.respondWith(
 				caches.match(event.request)
 				.then(function(response) {
-					// Cache hit - return response
+					// If a response is found in cache, return it.
 					if (response) {
 						return response;
 					}
 			
-					// Not in cache, so fetch from network.
+					// If not in cache, fetch it from the network.
 					return fetch(event.request).then(
 						function(networkResponse) {
-							// A response is a stream and can only be consumed once.
-							// We need to clone it to put one copy in cache and return one to the browser.
+							// Clone the response because it's a stream and can only be used once.
 							const responseToCache = networkResponse.clone();
 							
 							caches.open(CACHE_NAME)
 							.then(function(cache) {
-								// Cache the new response.
-								// This will also cache opaque responses (e.g., for cross-origin favicons).
+								// Cache the newly fetched resource. This is runtime caching for wallpapers, etc.
 								cache.put(event.request, responseToCache);
 							});
 				
+							// Return the network response to the page.
 							return networkResponse;
 						}
 					).catch(function(error) {
-						console.error('Fetching failed:', event.request.url, error);
-						// If a fetch error occurs, we throw it to be handled by the browser.
+						console.error('ServiceWorker: Fetching failed:', event.request.url, error);
+						// If fetch fails (e.g., offline and not in cache), the request will fail.
+						// A fallback could be returned here if desired.
 						throw error;
 					});
 				})
 			);
 		}
-		// For other requests (like POST or chrome-extension:// scheme), let the browser handle them normally.
+		// For non-cacheable requests (e.g., local extension files), do nothing.
+		// The browser will handle them normally by loading them from the extension package.
 	});
 
-	this.addEventListener('message', function(event){
-		console.log("SW Received Message: " + event.data);
-	});
-
-
-	this.addEventListener('activate', function(event){
-		console.log('ServiceWorker activated!');
-		// Clean up old caches to save space and remove outdated data.
+	// On activate, clean up old caches and take control of clients.
+	self.addEventListener('activate', function(event){
+		console.log('ServiceWorker: activate event in progress.');
 		event.waitUntil(
-			caches.keys().then(function(cacheNames) {
-			  return Promise.all(
-				cacheNames.filter(function(cacheName) {
-				  // Return true to remove this cache if it's not our current CACHE_NAME.
-				  return cacheName !== CACHE_NAME;
-				}).map(function(cacheName) {
-				  console.log('ServiceWorker: deleting old cache:', cacheName);
-				  return caches.delete(cacheName);
+			Promise.all([
+				// Take control of all open clients without waiting for a reload.
+				self.clients.claim(),
+				// Clean up old caches.
+				caches.keys().then(function(cacheNames) {
+				  return Promise.all(
+					cacheNames.filter(function(cacheName) {
+					  // Delete any cache that is not our current one.
+					  return cacheName !== CACHE_NAME;
+					}).map(function(cacheName) {
+					  console.log('ServiceWorker: deleting old cache:', cacheName);
+					  return caches.delete(cacheName);
+					})
+				  );
 				})
-			  );
-			})
+			])
 		  );
 	});
+
 })();
