@@ -270,27 +270,40 @@ class App {
         document.addEventListener('mousemove', () => this._handleActivity());
         document.addEventListener('keydown', () => this._handleActivity());
 
+        // Search
         this.dom.searchBtn.addEventListener('click', () => this._handleSearch());
         this.dom.searchInput.addEventListener('keydown', e => {
             if (e.key === 'Enter') this._handleSearch(e.ctrlKey);
         });
 
+        // Icons
         this.dom.iconsContainer.addEventListener('click', e => this._handleIconClick(e));
         this.dom.iconsContainer.addEventListener('scroll', () => this._updateIconNav());
         this.dom.iconsContainer.addEventListener('wheel', e => this._handleIconScroll(e));
         this.dom.iconsPrevBtn.addEventListener('click', () => this._slideIcons('prev'));
         this.dom.iconsNextBtn.addEventListener('click', () => this._slideIcons('next'));
         
+        // Settings Panel
         this.dom.settingsBtn.addEventListener('click', () => this._toggleSettings(true));
         this.dom.settingsCloseBtn.addEventListener('click', () => this._toggleSettings(false));
         this.dom.settingsContent.addEventListener('change', e => this._handleSettingChange(e));
+
+        // Settings - Add Group
         this.dom.addGroupBtn.addEventListener('click', () => this._addGroup());
+        this.dom.groupNameInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this._loadGroupForEditing();
+            }
+        });
         this.dom.randomFromAllCheckbox.addEventListener('change', () => this._handleRandomFromAllChange());
         
+        // Gallery
         this.dom.galleryCloseBtn.addEventListener('click', () => this.dom.galleryDialog.close());
         this.dom.galleryGrid.addEventListener('click', e => this._handleGalleryClick(e));
         this.dom.galleryDeleteGroupBtn.addEventListener('click', () => this._handleDeleteGroup());
 
+        // Settings - Custom Links
         this.dom.addLinkBtn.addEventListener('click', () => this._addCustomLink());
         this.dom.customLinksList.addEventListener('click', e => this._handleCustomLinkListClick(e));
     }
@@ -547,6 +560,18 @@ class App {
         const { scrollLeft, scrollWidth, clientWidth } = this.dom.iconsContainer;
         this.dom.iconsPrevBtn.disabled = scrollLeft < 10;
         this.dom.iconsNextBtn.disabled = scrollLeft > scrollWidth - clientWidth - 10;
+    }
+
+    _loadGroupForEditing() {
+        const name = this.dom.groupNameInput.value.trim();
+        if (!name) return;
+
+        const existingGroup = this.state.settings.group_list.find(g => g.name === name);
+
+        if (existingGroup) {
+            this.dom.groupPathInput.value = existingGroup.path || '';
+            this.dom.groupItemsInput.value = existingGroup.item.join(';');
+        }
     }
     
     _addGroup() {
