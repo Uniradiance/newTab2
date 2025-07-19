@@ -297,6 +297,10 @@ class App {
             e.preventDefault();
             if (action === 'toggle-gallery') this._toggleGallery(true);
             if (action === 'toggle-nas') this._toggleNasIcons();
+        } else if (link.href && (link.href.startsWith('http://') || link.href.startsWith('https://'))) {
+            // This is an external navigation link
+            e.preventDefault();
+            window.location.replace(link.href);
         }
     }
 
