@@ -29,6 +29,7 @@ class App {
             groupNameInput: document.getElementById('group-name-input'),
             groupPathInput: document.getElementById('group-path-input'),
             groupItemsInput: document.getElementById('group-items-input'),
+            randomFromAllCheckbox: document.getElementById('random-from-all-checkbox'),
             // Custom Links
             addLinkBtn: document.getElementById('add-link-btn'),
             customLinkTitleInput: document.getElementById('custom-link-title-input'),
@@ -50,6 +51,7 @@ class App {
                 autoswitch_current: 6000,
                 like_current: 'default',
                 group_list: [],
+                random_from_all_groups: false,
             },
             customLinks: [],
             timers: {
@@ -167,18 +169,28 @@ class App {
     
     _renderGallery() {
         this.dom.galleryGrid.innerHTML = '';
-        const group = this.state.settings.group_list.find(g => g.name === this.state.settings.like_current);
-        if (!group) return;
+        
+        const groupsToUse = this.state.settings.random_from_all_groups
+            ? this.state.settings.group_list
+            : [this.state.settings.group_list.find(g => g.name === this.state.settings.like_current)].filter(Boolean);
+
+        if (!groupsToUse || groupsToUse.length === 0) {
+            return;
+        }
 
         const fragment = document.createDocumentFragment();
-        group.item.forEach(itemPath => {
-            const clone = this.dom.galleryItemTemplate.content.cloneNode(true);
-            const btn = clone.querySelector('button');
-            const img = clone.querySelector('img');
-            const fullPath = group.path + itemPath;
-            img.src = fullPath;
-            btn.dataset.path = fullPath;
-            fragment.appendChild(clone);
+        groupsToUse.forEach(group => {
+            if (!group || !group.item) return;
+
+            group.item.forEach(itemPath => {
+                const clone = this.dom.galleryItemTemplate.content.cloneNode(true);
+                const btn = clone.querySelector('button');
+                const img = clone.querySelector('img');
+                const fullPath = itemPath.startsWith('http') ? itemPath : (group.path || '') + itemPath;
+                img.src = fullPath;
+                btn.dataset.path = fullPath;
+                fragment.appendChild(clone);
+            });
         });
         this.dom.galleryGrid.appendChild(fragment);
     }
@@ -271,6 +283,7 @@ class App {
         this.dom.settingsCloseBtn.addEventListener('click', () => this._toggleSettings(false));
         this.dom.settingsContent.addEventListener('change', e => this._handleSettingChange(e));
         this.dom.addGroupBtn.addEventListener('click', () => this._addGroup());
+        this.dom.randomFromAllCheckbox.addEventListener('change', () => this._handleRandomFromAllChange());
         
         this.dom.galleryCloseBtn.addEventListener('click', () => this.dom.galleryDialog.close());
         this.dom.galleryGrid.addEventListener('click', e => this._handleGalleryClick(e));
@@ -356,6 +369,19 @@ class App {
         this._applySettings();
     }
 
+    _handleRandomFromAllChange() {
+        const isChecked = this.dom.randomFromAllCheckbox.checked;
+        this.state.settings.random_from_all_groups = isChecked;
+
+        if (isChecked) {
+            this.state.settings.like_current = 'default';
+        }
+
+        this._saveSettings();
+        this._applySettings();
+    }
+
+
     _handleCustomLinkListClick(e) {
         const deleteBtn = e.target.closest('.delete-link-btn');
         if (deleteBtn) {
@@ -404,18 +430,27 @@ class App {
     }
 
     _setRandomWallpaper() {
-        const group = this.state.settings.group_list.find(g => g.name === this.state.settings.like_current);
-        if (!group || !group.item || group.item.length === 0) return;
+        const groupsToUse = this.state.settings.random_from_all_groups ? this.state.settings.group_list : [this.state.settings.group_list.find(g => g.name === this.state.settings.like_current)];
+        
+        const allWallpapers = groupsToUse.flatMap(group => {
+            if (!group || !group.item || group.item.length === 0) return [];
+            return group.item.map(itemPath => 
+                itemPath.startsWith('http') ? itemPath : (group.path || '') + itemPath
+            );
+        });
 
-        const randomIndex = Math.floor(Math.random() * group.item.length);
-        const randomImage = group.item[randomIndex];
-        this._setWallpaper(group.path + randomImage);
+        if (allWallpapers.length === 0) return;
+
+        const randomIndex = Math.floor(Math.random() * allWallpapers.length);
+        const wallpaperUrl = allWallpapers[randomIndex];
+        this._setWallpaper(wallpaperUrl);
     }
 
     _toggleSettings(open) {
         if (open) {
             this._renderSettings();
             this._renderCustomLinksList();
+            this.dom.randomFromAllCheckbox.checked = this.state.settings.random_from_all_groups;
             this.dom.settingsPanel.classList.add('open');
         } else {
             this.dom.settingsPanel.classList.remove('open');
@@ -489,8 +524,8 @@ class App {
         let path = this.dom.groupPathInput.value.trim();
         const itemsRaw = this.dom.groupItemsInput.value.trim();
 
-        if (!name || !path || !itemsRaw) return alert("All fields are required.");
-        if (!path.endsWith('/')) path += '/';
+        if (!name || !itemsRaw) return alert("Group Name and Image IDs are required.");
+        if (path && !path.endsWith('/')) path += '/';
 
         const items = itemsRaw.split(';').map(s => s.trim()).filter(Boolean);
         

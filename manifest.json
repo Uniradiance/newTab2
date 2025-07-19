@@ -23,9 +23,7 @@
       "48": "icons/48.png"
    },
    "host_permissions": [
-      "*://www.google.com/*",
-      "*://127.0.0.1/*",
-      "*://localhost/*"
+      "<all_urls>"
    ],
    "permissions": [
       "topSites",

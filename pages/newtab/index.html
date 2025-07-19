@@ -85,18 +85,24 @@
             <hr class="settings-divider">
 
             <div class="settings-add-group">
-                <h3>Add Subscription</h3>
+                <div class="settings-group-header">
+                    <h3>Add Subscription</h3>
+                    <div class="form-item form-item--inline">
+                        <input type="checkbox" id="random-from-all-checkbox">
+                        <label for="random-from-all-checkbox">Random from all</label>
+                    </div>
+                </div>
                 <div class="form-item">
                     <label for="group-name-input">Group Name</label>
                     <input type="text" id="group-name-input" placeholder="e.g., Nature">
                 </div>
                 <div class="form-item">
-                    <label for="group-path-input">URL Path</label>
+                    <label for="group-path-input">URL  (Optional)</label>
                     <input type="text" id="group-path-input" placeholder="e.g., http://my-nas/images/">
                 </div>
                 <div class="form-item">
-                    <label for="group-items-input">Image IDs (semicolon-separated)</label>
-                    <textarea id="group-items-input" rows="5" placeholder="image1.jpg;image2.png;..."></textarea>
+                    <label for="group-items-input">Image IDs or URLs (semicolon-separated)</label>
+                    <textarea id="group-items-input" rows="5" placeholder="image1.jpg;https://example.com/wallpaper.png;..."></textarea>
                 </div>
                 <button id="add-group-btn" class="button">Add Group</button>
             </div>

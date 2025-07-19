@@ -534,6 +534,23 @@ textarea {
     border-bottom: 1px solid var(--border-color);
 }
 
+.settings-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    /* Take over layout duties from the h3 inside */
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-group-header h3 {
+    /* Reset layout styles from the general h3 rule */
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
 .add-link-actions {
     display: flex;
     justify-content: space-between;
@@ -555,7 +572,8 @@ textarea {
     font-size: 0.875rem;
 }
 
-.nas-link-checkbox {
+.nas-link-checkbox,
+#random-from-all-checkbox {
     width: auto;
     height: auto;
     cursor: pointer;
