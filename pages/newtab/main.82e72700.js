@@ -436,9 +436,7 @@ class App {
             this.state.nasLinks.forEach(el => el.remove());
             this.state.nasLinks = [];
         } else {
-            const hardcodedNasLinks = [
-                { url: "http://localhost:5230/", title: "Memos" },
-            ];
+            const hardcodedNasLinks = [];
     
             const customNasLinks = this.state.customLinks.filter(link => link.isNas);
             const customUrls = new Set(customNasLinks.map(link => link.url));
