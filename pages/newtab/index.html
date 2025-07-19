@@ -97,12 +97,13 @@
                     <input type="text" id="group-name-input" placeholder="e.g., Nature">
                 </div>
                 <div class="form-item">
-                    <label for="group-path-input">URL  (Optional)</label>
+                    <label for="group-path-input">URL (Optional)</label>
                     <input type="text" id="group-path-input" placeholder="e.g., http://my-nas/images/">
                 </div>
                 <div class="form-item">
                     <label for="group-items-input">Image IDs or URLs (semicolon-separated)</label>
-                    <textarea id="group-items-input" rows="5" placeholder="image1.jpg;https://example.com/wallpaper.png;..."></textarea>
+                    <textarea id="group-items-input" rows="5"
+                        placeholder="image1.jpg;https://example.com/wallpaper.png;..."></textarea>
                 </div>
                 <button id="add-group-btn" class="button">Add Group</button>
             </div>
@@ -118,6 +119,11 @@
         </div>
         <div id="gallery-grid" class="gallery-grid">
             <!-- Gallery images will be rendered here -->
+        </div>
+        <div id="gallery-actions" class="gallery-actions">
+            <button id="gallery-delete-group-btn" class="icon-btn" aria-label="Delete Current Group">
+                <i class="icon-delete"></i>
+            </button>
         </div>
     </dialog>
 

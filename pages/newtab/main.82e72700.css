@@ -717,3 +717,22 @@ textarea {
     height: 100%;
     object-fit: cover;
 }
+
+.gallery-actions {
+    position: absolute;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    display: none;
+}
+
+.gallery-actions .icon-btn {
+    background: rgba(220, 53, 69, 0.1);
+}
+
+.gallery-actions .icon-btn:hover {
+    background: rgba(220, 53, 69, 0.2);
+}
+
+.gallery-actions .icon-btn i {
+    background-color: #dc3545;
+}

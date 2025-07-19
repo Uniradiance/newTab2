@@ -20,6 +20,8 @@ class App {
             galleryDialog: document.getElementById('gallery-dialog'),
             galleryGrid: document.getElementById('gallery-grid'),
             galleryCloseBtn: document.getElementById('gallery-close-btn'),
+            galleryActions: document.getElementById('gallery-actions'),
+            galleryDeleteGroupBtn: document.getElementById('gallery-delete-group-btn'),
             // Settings
             settingsBtn: document.getElementById('settings-btn'),
             settingsPanel: document.getElementById('settings-panel'),
@@ -287,6 +289,7 @@ class App {
         
         this.dom.galleryCloseBtn.addEventListener('click', () => this.dom.galleryDialog.close());
         this.dom.galleryGrid.addEventListener('click', e => this._handleGalleryClick(e));
+        this.dom.galleryDeleteGroupBtn.addEventListener('click', () => this._handleDeleteGroup());
 
         this.dom.addLinkBtn.addEventListener('click', () => this._addCustomLink());
         this.dom.customLinksList.addEventListener('click', e => this._handleCustomLinkListClick(e));
@@ -344,6 +347,29 @@ class App {
         if (!btn) return;
         const path = btn.dataset.path;
         this._setWallpaper(path);
+        this.dom.galleryDialog.close();
+    }
+
+    _handleDeleteGroup() {
+        const currentGroup = this.state.settings.like_current;
+        if (currentGroup === 'default' || this.state.settings.random_from_all_groups) {
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to delete the "${currentGroup}" group? This cannot be undone.`)) {
+            return;
+        }
+
+        this.state.settings.group_list = this.state.settings.group_list.filter(g => g.name !== currentGroup);
+        this.state.settings.like_current = 'default';
+
+        this._saveSettings();
+        this._applySettings();
+
+        if (this.dom.settingsPanel.classList.contains('open')) {
+            this._renderSettings();
+        }
+        
         this.dom.galleryDialog.close();
     }
     
@@ -460,6 +486,10 @@ class App {
     _toggleGallery(open) {
         if (open) {
             this._renderGallery();
+            
+            const shouldShowDelete = !this.state.settings.random_from_all_groups && this.state.settings.like_current !== 'default';
+            this.dom.galleryActions.style.display = shouldShowDelete ? 'block' : 'none';
+
             this.dom.galleryDialog.showModal();
         } else {
             this.dom.galleryDialog.close();
