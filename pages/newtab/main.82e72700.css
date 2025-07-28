@@ -333,6 +333,14 @@ button {
 }
 
 /* === Clock === */
+/* 当屏幕宽度小于768px时隐藏该div */
+@media (max-width: 1140px) {
+  .clock-container {
+    bottom: none;
+    top: 5%;
+  }
+}
+
 .clock-container {
     position: absolute;
     left: 2%;
