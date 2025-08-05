@@ -1,7 +1,6 @@
-
 (() => {
   const CACHE_NAME = 'v3-dynamic-content'; // Bump version to trigger update
-  const DEFAULT_ICON = '/pages/newtab/imgs/unraid-icon.png'; // 默认图标路径
+  const DEFAULT_ICON = '../newtab/imgs/unraid-icon.png'; // 默认图标路径
 
   // 检查响应是否是图标请求
   function isIconRequest(url) {
@@ -36,17 +35,7 @@
   // On install, the service worker is activated.
   self.addEventListener('install', function (event) {
     console.log('ServiceWorker: install event in progress.');
-    // 预缓存默认图标
-    event.waitUntil(
-      Promise.all([
-        caches.open(CACHE_NAME).then(cache => 
-          cache.add(DEFAULT_ICON).catch(err => 
-            console.warn('默认图标预缓存失败:', err)
-          )
-        ),
-        self.skipWaiting()
-      ])
-    );
+    event.waitUntil(self.skipWaiting());
   });
 
   // On fetch, use a cache-first strategy for remote resources (like wallpapers and favicons).
