@@ -1,5 +1,3 @@
-
-
 class App {
     constructor() {
         this.dom = {
@@ -75,12 +73,16 @@ class App {
         };
 
         this.isIconScrolling = false;
-        
+
         this.settingsConfig = [
             { id: 'autohide', name: 'Auto-hide UI', contentLabel: 'Delay', unit: 'ms', options: [3000, 5000, 10000, 15000] },
             { id: 'autoswitch', name: 'Auto-switch Wallpaper', contentLabel: 'Interval', unit: 'ms', options: [3000, 6000, 9000, 12000, 16000] },
             { id: 'like', name: 'Wallpaper Subscription', contentLabel: 'Group', unit: '', options: [] }
         ];
+
+        this._debouncedSlideIcons = this._debounce((direction) => {
+            this._slideIcons(direction);
+        }, 200);
     }
 
     async init() {
@@ -122,7 +124,7 @@ class App {
             chrome.topSites.get(sites => {
                 const topSitesFragment = document.createDocumentFragment();
                 const customUrls = new Set(this.state.customLinks.map(l => l.url));
-                
+
                 sites
                     .filter(site => !customUrls.has(site.url))
                     .forEach(site => {
@@ -136,7 +138,7 @@ class App {
             });
         });
     }
-    
+
     _createIcon({ title, url }) {
         const iconClone = this.dom.iconTemplate.content.cloneNode(true);
         const link = iconClone.querySelector('a');
@@ -146,16 +148,16 @@ class App {
         link.href = url;
         link.title = title;
         label.textContent = title;
-        
+
         label.style.visibility = "hidden";
-        link.addEventListener("mouseover", function() {
+        link.addEventListener("mouseover", function () {
             label.style.visibility = "visible";
         });
 
-        link.addEventListener("mouseout", function() {
+        link.addEventListener("mouseout", function () {
             label.style.visibility = "hidden";
         });
-        
+
         const customIcon = this.state.customIcons[url];
         if (customIcon) {
             img.style.backgroundImage = `url(${customIcon})`;
@@ -177,13 +179,13 @@ class App {
                 img.style.backgroundImage = 'url(imgs/icon-fallback.png)';
             }
         }
-        
+
         return iconClone;
     }
-    
+
     _renderGallery() {
         this.dom.galleryGrid.innerHTML = '';
-        
+
         const groupsToUse = this.state.settings.random_from_all_groups
             ? this.state.settings.group_list
             : [this.state.settings.group_list.find(g => g.name === this.state.settings.like_current)].filter(Boolean);
@@ -208,7 +210,7 @@ class App {
         });
         this.dom.galleryGrid.appendChild(fragment);
     }
-    
+
     _renderSettings() {
         const settingsContainer = this.dom.settingsContent.querySelector('.setting-item')?.parentNode || this.dom.settingsContent;
         settingsContainer.querySelectorAll('.setting-item').forEach(el => el.remove());
@@ -225,19 +227,19 @@ class App {
             const contentLabel = clone.querySelector('.form-item-label');
             const select = clone.querySelector('.select-box');
             const contentDiv = clone.querySelector('.setting-item-content');
-            
+
             settingItem.dataset.id = config.id;
             label.textContent = config.name;
-            
+
             const isEnabled = (config.id === 'like') || (this.state.settings[config.id] ?? false);
             checkbox.checked = isEnabled;
-            
+
             if (config.id === 'like') {
                 settingItem.querySelector('.switch').style.display = 'none';
             }
-            
+
             contentDiv.classList.toggle('disabled', !isEnabled);
-            
+
             contentLabel.textContent = config.contentLabel;
 
             config.options.forEach(opt => {
@@ -247,12 +249,12 @@ class App {
                 select.appendChild(optionEl);
             });
             select.value = this.state.settings[`${config.id}_current`];
-            
+
             fragment.appendChild(clone);
         });
         settingsContainer.prepend(fragment);
     }
-    
+
     _renderCustomLinksList() {
         this.dom.customLinksList.innerHTML = '';
         const fragment = document.createDocumentFragment();
@@ -267,7 +269,7 @@ class App {
                 nasTag.textContent = 'NAS';
                 titleSpan.appendChild(nasTag);
             }
-            
+
             clone.querySelector('.custom-link-url').textContent = link.url;
             clone.querySelector('.delete-link-btn').dataset.url = link.url;
             clone.querySelector('i').classList.add('icon-delete');
@@ -285,7 +287,7 @@ class App {
             const link = iconClone.querySelector('a.icon-item');
             const img = iconClone.querySelector('i.icon-img');
             const label = iconClone.querySelector('span.icon-label');
-            
+
             link.removeAttribute('href');
             link.setAttribute('role', 'button');
             link.setAttribute('tabindex', '0');
@@ -307,7 +309,7 @@ class App {
                     img.style.backgroundImage = 'url(imgs/icon-fallback.png)';
                 }
             }
-            
+
             return iconClone;
         };
 
@@ -316,7 +318,7 @@ class App {
             const allIconData = [...this.state.customLinks];
             const topSitesData = sites.filter(site => !customUrls.has(site.url));
             const combinedData = [...allIconData, ...topSitesData];
-            
+
             const settingsGridFragment = document.createDocumentFragment();
             combinedData.forEach(iconData => {
                 settingsGridFragment.appendChild(createSettingsIcon(iconData));
@@ -345,7 +347,7 @@ class App {
         this.dom.iconsContainer.addEventListener('wheel', e => this._handleIconScroll(e));
         this.dom.iconsPrevBtn.addEventListener('click', () => this._slideIcons('prev'));
         this.dom.iconsNextBtn.addEventListener('click', () => this._slideIcons('next'));
-        
+
         // Settings Panel
         this.dom.settingsBtn.addEventListener('click', () => this._toggleSettings(true));
         this.dom.settingsCloseBtn.addEventListener('click', () => this._toggleSettings(false));
@@ -360,7 +362,7 @@ class App {
             }
         });
         this.dom.randomFromAllCheckbox.addEventListener('change', () => this._handleRandomFromAllChange());
-        
+
         // Gallery
         this.dom.galleryCloseBtn.addEventListener('click', () => this.dom.galleryDialog.close());
         this.dom.galleryGrid.addEventListener('click', e => this._handleGalleryClick(e));
@@ -377,20 +379,29 @@ class App {
         this.dom.customIconEditRemoveBtn.addEventListener('click', () => this._handleCustomIconRemove());
         this.dom.customIconEditFileInput.addEventListener('change', () => this._handleCustomIconFileSelect());
     }
-    
+
     _handleSearch(useAlternate = false) {
         const query = this.dom.searchInput.value.trim();
         if (!query) return;
-        const url = useAlternate
-            ? `https://search.bilibili.com/all?keyword=${encodeURIComponent(query)}`
-            : `https://cn.bing.com/search?q=${encodeURIComponent(query)}`;
-        window.location.href = url;
+        const searchEngines = {
+            default: {
+                url: 'https://cn.bing.com/search',
+                param: 'q'
+            },
+            alternate: {
+                url: 'https://search.bilibili.com/all',
+                param: 'keyword'
+            }
+        };
+        const engine = useAlternate ? searchEngines.alternate : searchEngines.default;
+        const searchUrl = `${engine.url}?${engine.param}=${encodeURIComponent(query)}`;
+        window.location.href = searchUrl;
     }
 
     _handleIconClick(e) {
         const link = e.target.closest('a');
         if (!link) return;
-        
+
         const action = link.dataset.action;
         if (action) {
             e.preventDefault();
@@ -404,24 +415,12 @@ class App {
     }
 
     _handleIconScroll(e) {
-        if (this.isIconScrolling) {
-            return;
-        }
-
-        // Use deltaY for vertical scroll (mouse wheel) and fallback to deltaX for horizontal (trackpad)
         const delta = e.deltaY || e.deltaX;
-
-        // Threshold to prevent firing on minor scrolls
+        
         if (Math.abs(delta) > 1) {
-            e.preventDefault(); // Prevent page scroll
+            e.preventDefault();
             const direction = delta > 0 ? 'next' : 'prev';
-            this._slideIcons(direction);
-
-            this.isIconScrolling = true;
-            // Throttle to prevent rapid firing. The duration should be enough for the smooth scroll animation to feel right.
-            setTimeout(() => {
-                this.isIconScrolling = false;
-            }, 400); 
+            this._debouncedSlideIcons(direction);
         }
     }
 
@@ -452,15 +451,15 @@ class App {
         if (this.dom.settingsPanel.classList.contains('open')) {
             this._renderSettings();
         }
-        
+
         this.dom.galleryDialog.close();
     }
-    
+
     _handleSettingChange(e) {
         const target = e.target;
         const settingItem = target.closest('.setting-item');
         if (!settingItem) return;
-        
+
         const id = settingItem.dataset.id;
         const isSwitch = target.classList.contains('switch-checkbox');
         const isSelect = target.classList.contains('select-box');
@@ -497,7 +496,7 @@ class App {
             this._deleteCustomLink(deleteBtn.dataset.url);
         }
     }
-    
+
     _handleActivity() {
         if (!this.state.settings.autohide) return;
         this.dom.appContainer.classList.remove('hidden');
@@ -515,7 +514,7 @@ class App {
             this.dom.customIconEditRemoveBtn.style.display = this.state.customIcons[url] ? 'inline-block' : 'none';
             this.dom.customIconEditUrlInput.value = '';
             this.dom.customIconEditFileInput.value = '';
-            
+
             this.dom.customIconEditSection.style.display = 'block';
             this.dom.customIconEditSection.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }
@@ -524,9 +523,9 @@ class App {
     async _handleCustomIconSave() {
         const url = this.dom.customIconEditSection.dataset.editingUrl;
         if (!url) return;
-    
+
         const iconDataSource = this.dom.customIconEditUrlInput.value.trim();
-        
+
         if (!iconDataSource) {
             alert('Please provide an image URL or upload a file.');
             return;
@@ -541,7 +540,7 @@ class App {
             alert('Please enter a valid image URL or choose a file.');
         }
     }
-    
+
     async _handleCustomIconRemove() {
         const url = this.dom.customIconEditSection.dataset.editingUrl;
         if (url && this.state.customIcons[url]) {
@@ -554,24 +553,24 @@ class App {
     _handleCustomIconFileSelect() {
         const fileInput = this.dom.customIconEditFileInput;
         const urlInput = this.dom.customIconEditUrlInput;
-    
+
         if (fileInput.files && fileInput.files[0]) {
             const file = fileInput.files[0];
             const reader = new FileReader();
-            
+
             reader.onload = (e) => {
                 urlInput.value = e.target.result;
             };
-    
+
             reader.onerror = () => {
                 alert('Error reading file. Please try again.');
                 urlInput.value = '';
             }
-            
+
             reader.readAsDataURL(file);
         }
     }
-    
+
 
     // --- FEATURE LOGIC ---
 
@@ -579,40 +578,43 @@ class App {
         this._updateClock();
         setInterval(() => this._updateClock(), 15000);
     }
-    
+
     _updateClock() {
         const now = new Date();
-        if (now.getDate() === this.state.lastDate) {
-             this.dom.clockTime.textContent = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-        } else {
+        const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+        // 只有当时间字符串改变时才更新DOM
+        if (this._lastTimeStr !== timeStr) {
+            this.dom.clockTime.textContent = timeStr;
+            this._lastTimeStr = timeStr;
+        }
+
+        if (now.getDate() !== this.state.lastDate) {
             const week = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
-            this.dom.clockTime.textContent = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-            this.dom.clockDate.textContent = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${week[now.getDay()]}`;
+            const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${week[now.getDay()]}`;
+            this.dom.clockDate.textContent = dateStr;
             this.state.lastDate = now.getDate();
         }
     }
-    
+
     _setWallpaper(path) {
         const img = new Image();
         img.onload = () => {
-            // This function is called only when the image has fully loaded.
-            // By setting the background image here, we ensure the image is ready
-            // and avoid the "flash" of an empty background.
             this.dom.wallpaper.style.backgroundImage = `url("${path}")`;
         };
+
         img.onerror = () => {
             console.error(`Failed to load wallpaper: ${path}`);
-            // Optionally, handle the error, e.g., by not changing the wallpaper.
         };
         img.src = path; // This starts the image download.
     }
 
     _setRandomWallpaper() {
         const groupsToUse = this.state.settings.random_from_all_groups ? this.state.settings.group_list : [this.state.settings.group_list.find(g => g.name === this.state.settings.like_current)];
-        
+
         const allWallpapers = groupsToUse.flatMap(group => {
             if (!group || !group.item || group.item.length === 0) return [];
-            return group.item.map(itemPath => 
+            return group.item.map(itemPath =>
                 itemPath.startsWith('http') ? itemPath : (group.path || '') + itemPath
             );
         });
@@ -636,11 +638,11 @@ class App {
             this.dom.settingsPanel.classList.remove('open');
         }
     }
-    
+
     _toggleGallery(open) {
         if (open) {
             this._renderGallery();
-            
+
             const shouldShowDelete = !this.state.settings.random_from_all_groups && this.state.settings.like_current !== 'default';
             this.dom.galleryActions.style.display = shouldShowDelete ? 'block' : 'none';
 
@@ -649,17 +651,20 @@ class App {
             this.dom.galleryDialog.close();
         }
     }
-    
+
     _toggleNasIcons() {
+        if (!this._nasBtnElement) {
+            this._nasBtnElement = this.dom.iconsContainer.querySelector('a[data-action="toggle-nas"]');
+        }
+
         if (this.state.nasIconsVisible) {
             this.state.nasLinks.forEach(el => el.remove());
             this.state.nasLinks = [];
         } else {
-            const hardcodedNasLinks = [];
-    
+            const fragment = document.createDocumentFragment();
             const customNasLinks = this.state.customLinks.filter(link => link.isNas);
             const customUrls = new Set(customNasLinks.map(link => link.url));
-    
+
             // Start with custom links, then add hardcoded ones that are not duplicates
             const allNasLinks = [...customNasLinks];
             hardcodedNasLinks.forEach(hardcodedLink => {
@@ -667,8 +672,7 @@ class App {
                     allNasLinks.push(hardcodedLink);
                 }
             });
-    
-            const fragment = document.createDocumentFragment();
+
             allNasLinks.forEach(link => {
                 const iconClone = this._createIcon(link);
                 const iconElement = iconClone.querySelector('.icon-item');
@@ -677,17 +681,11 @@ class App {
                 }
                 fragment.appendChild(iconClone);
             });
-            const nasBtnElement = this.dom.iconsContainer.querySelector('a[data-action="toggle-nas"]');
-            if (nasBtnElement) {
-                nasBtnElement.after(fragment);
-            } else {
-                this.dom.iconsContainer.appendChild(fragment);
-            }
         }
         this.state.nasIconsVisible = !this.state.nasIconsVisible;
         this._updateIconNav();
     }
-    
+
     _slideIcons(dir) {
         const container = this.dom.iconsContainer;
         const scrollAmount = container.clientWidth;
@@ -714,7 +712,7 @@ class App {
             this.dom.groupItemsInput.value = existingGroup.item.join(';');
         }
     }
-    
+
     _addGroup() {
         const name = this.dom.groupNameInput.value.trim();
         let path = this.dom.groupPathInput.value.trim();
@@ -724,7 +722,7 @@ class App {
         if (path && !path.endsWith('/')) path += '/';
 
         const items = itemsRaw.split(';').map(s => s.trim()).filter(Boolean);
-        
+
         const newGroup = { name, path, item: items };
         const existingIndex = this.state.settings.group_list.findIndex(g => g.name === name);
 
@@ -733,31 +731,39 @@ class App {
         } else {
             this.state.settings.group_list.push(newGroup);
         }
-        
+
         this.state.settings.like_current = name;
         this.dom.groupNameInput.value = '';
         this.dom.groupPathInput.value = '';
         this.dom.groupItemsInput.value = '';
-        
+
         this._saveSettings();
         this._applySettings();
         this._renderSettings();
     }
-    
+
+    _validateUrl(url) {
+        try {
+            const urlObj = new URL(url);
+            return ['http:', 'https:'].includes(urlObj.protocol);
+        } catch (e) {
+            return false;
+        }
+    }
+
     _addCustomLink() {
         const title = this.dom.customLinkTitleInput.value.trim();
         let url = this.dom.customLinkUrlInput.value.trim();
         const isNas = this.dom.nasLinkCheckbox.checked;
 
-        if (!title || !url) return alert('Title and URL are required.');
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-            url = 'https://' + url;
+        if (!title || !url) {
+            alert('标题和URL都不能为空');
+            return;
         }
 
-        try {
-            new URL(url);
-        } catch (_) {
-            return alert('Please enter a valid URL.');
+        if (!this._validateUrl(url)) {
+            alert('请输入有效的 http 或 https URL');
+            return;
         }
 
         if (this.state.customLinks.some(link => link.url === url)) {
@@ -768,7 +774,7 @@ class App {
         this.dom.customLinkTitleInput.value = '';
         this.dom.customLinkUrlInput.value = '';
         this.dom.nasLinkCheckbox.checked = false;
-        
+
         this._saveCustomLinks();
         this._renderCustomLinksList();
 
@@ -785,7 +791,7 @@ class App {
         this.state.customLinks = this.state.customLinks.filter(link => link.url !== url);
         this._saveCustomLinks();
         this._renderCustomLinksList();
-    
+
         // If NAS icons are currently displayed and we deleted a NAS link, refresh them
         if (linkToDelete && linkToDelete.isNas && this.state.nasIconsVisible) {
             this._toggleNasIcons(); // hide
@@ -810,12 +816,12 @@ class App {
                 this.state.customLinks = customLinks || [];
 
                 if (!this.state.settings.group_list || this.state.settings.group_list.length === 0) {
-                   this.state.settings.group_list = [{
-                       name: 'default',
-                       path: 'pictures/',
-                       item: ['0.png', '1.png', '2.png', '3.png', '4.png', '5.png', '6.png', '7.png', '8.png', '9.png', '10.png', '11.png', '12.png']
-                   }];
-                   this._saveSettings();
+                    this.state.settings.group_list = [{
+                        name: 'default',
+                        path: 'pictures/',
+                        item: ['0.png', '1.png', '2.png', '3.png', '4.png', '5.png', '6.png', '7.png', '8.png', '9.png', '10.png', '11.png', '12.png']
+                    }];
+                    this._saveSettings();
                 }
                 resolve();
             });
@@ -834,7 +840,7 @@ class App {
     _saveSettings() {
         chrome.storage.sync.set(this.state.settings);
     }
-    
+
     _saveCustomLinks() {
         chrome.storage.sync.set({ customLinks: this.state.customLinks }, () => {
             this._renderIcons();
@@ -845,21 +851,21 @@ class App {
         return new Promise(resolve => {
             chrome.storage.local.set({ customIcons: this.state.customIcons }, async () => {
                 const wasNasVisible = this.state.nasIconsVisible;
-    
+
                 // If NAS icons were open, we must hide them to reset the state before the main render,
                 // which clears the container and invalidates the old icon elements.
                 if (wasNasVisible) {
                     this._toggleNasIcons(); // This hides them and sets nasIconsVisible to false.
                 }
-    
+
                 // Render the main icons. This clears the container and lays the groundwork.
                 await this._renderIcons();
-                
+
                 // If they were originally visible, show them again (now refreshed with the new custom icon).
                 if (wasNasVisible) {
                     this._toggleNasIcons(); // This shows them, as nasIconsVisible is now false.
                 }
-    
+
                 // Refresh the settings grid if it's open to reflect the changes.
                 if (this.dom.settingsPanel.classList.contains('open')) {
                     this._renderCustomIconSettingsGrid();
@@ -868,14 +874,14 @@ class App {
             });
         });
     }
-    
+
     _applySettings() {
         // Wallpaper
         clearInterval(this.state.timers.wallpaper);
         if (this.state.settings.autoswitch) {
             this._setRandomWallpaper();
             this.state.timers.wallpaper = setInterval(
-                () => this._setRandomWallpaper(), 
+                () => this._setRandomWallpaper(),
                 this.state.settings.autoswitch_current
             );
         } else {
@@ -885,7 +891,7 @@ class App {
         // Auto-hide UI
         this._resetHideTimer();
     }
-    
+
     _resetHideTimer() {
         clearTimeout(this.state.timers.hideUI);
         if (this.state.settings.autohide) {
