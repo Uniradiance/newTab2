@@ -79,10 +79,6 @@ class App {
             { id: 'autoswitch', name: 'Auto-switch Wallpaper', contentLabel: 'Interval', unit: 'ms', options: [3000, 6000, 9000, 12000, 16000] },
             { id: 'like', name: 'Wallpaper Subscription', contentLabel: 'Group', unit: '', options: [] }
         ];
-
-        this._debouncedSlideIcons = this._debounce((direction) => {
-            this._slideIcons(direction);
-        }, 200);
     }
 
     async init() {
@@ -415,12 +411,24 @@ class App {
     }
 
     _handleIconScroll(e) {
+        if (this.isIconScrolling) {
+            return;
+        }
+
+        // Use deltaY for vertical scroll (mouse wheel) and fallback to deltaX for horizontal (trackpad)
         const delta = e.deltaY || e.deltaX;
-        
+
+        // Threshold to prevent firing on minor scrolls
         if (Math.abs(delta) > 1) {
-            e.preventDefault();
+            e.preventDefault(); // Prevent page scroll
             const direction = delta > 0 ? 'next' : 'prev';
-            this._debouncedSlideIcons(direction);
+            this._slideIcons(direction);
+
+            this.isIconScrolling = true;
+            // Throttle to prevent rapid firing. The duration should be enough for the smooth scroll animation to feel right.
+            setTimeout(() => {
+                this.isIconScrolling = false;
+            }, 400); 
         }
     }
 
@@ -653,15 +661,12 @@ class App {
     }
 
     _toggleNasIcons() {
-        if (!this._nasBtnElement) {
-            this._nasBtnElement = this.dom.iconsContainer.querySelector('a[data-action="toggle-nas"]');
-        }
-
         if (this.state.nasIconsVisible) {
             this.state.nasLinks.forEach(el => el.remove());
             this.state.nasLinks = [];
         } else {
-            const fragment = document.createDocumentFragment();
+            const hardcodedNasLinks = [];
+    
             const customNasLinks = this.state.customLinks.filter(link => link.isNas);
             const customUrls = new Set(customNasLinks.map(link => link.url));
 
@@ -673,6 +678,7 @@ class App {
                 }
             });
 
+            const fragment = document.createDocumentFragment();
             allNasLinks.forEach(link => {
                 const iconClone = this._createIcon(link);
                 const iconElement = iconClone.querySelector('.icon-item');
@@ -681,6 +687,12 @@ class App {
                 }
                 fragment.appendChild(iconClone);
             });
+            const nasBtnElement = this.dom.iconsContainer.querySelector('a[data-action="toggle-nas"]');
+            if (nasBtnElement) {
+                nasBtnElement.after(fragment);
+            } else {
+                this.dom.iconsContainer.appendChild(fragment);
+            }
         }
         this.state.nasIconsVisible = !this.state.nasIconsVisible;
         this._updateIconNav();
