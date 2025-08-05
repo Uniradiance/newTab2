@@ -1,6 +1,5 @@
 
 
-
 class App {
     constructor() {
         this.dom = {
@@ -38,6 +37,15 @@ class App {
             customLinkUrlInput: document.getElementById('custom-link-url-input'),
             customLinksList: document.getElementById('custom-links-list'),
             nasLinkCheckbox: document.getElementById('nas-link-checkbox'),
+            // Custom Icons
+            customIconsGrid: document.getElementById('custom-icons-grid'),
+            customIconEditSection: document.getElementById('custom-icon-edit-section'),
+            customIconEditTitle: document.getElementById('custom-icon-edit-title'),
+            customIconEditUrlInput: document.getElementById('custom-icon-edit-url-input'),
+            customIconEditFileInput: document.getElementById('custom-icon-edit-file-input'),
+            customIconEditSaveBtn: document.getElementById('custom-icon-edit-save-btn'),
+            customIconEditRemoveBtn: document.getElementById('custom-icon-edit-remove-btn'),
+            customIconEditCancelBtn: document.getElementById('custom-icon-edit-cancel-btn'),
             // Templates
             iconTemplate: document.getElementById('icon-template'),
             galleryItemTemplate: document.getElementById('gallery-item-template'),
@@ -56,6 +64,7 @@ class App {
                 random_from_all_groups: false,
             },
             customLinks: [],
+            customIcons: {},
             timers: {
                 wallpaper: null,
                 hideUI: null,
@@ -77,52 +86,54 @@ class App {
     async init() {
         await this._loadState();
         this._applySettings();
-        this._renderBaseUI();
+        await this._renderBaseUI();
         this._attachEventListeners();
     }
 
     // --- RENDER METHODS ---
 
-    _renderBaseUI() {
+    async _renderBaseUI() {
         this._startClock();
-        this._renderIcons();
+        await this._renderIcons();
     }
 
     _renderIcons() {
-        this.dom.iconsContainer.innerHTML = '';
-        const fragment = document.createDocumentFragment();
+        return new Promise(resolve => {
+            this.dom.iconsContainer.innerHTML = '';
+            const fragment = document.createDocumentFragment();
 
-        // Special icons
-        const galleryBtn = this._createIcon({ title: 'Gallery', url: '#gallery' });
-        const nasBtn = this._createIcon({ title: 'NAS', url: '#nas' });
-        fragment.appendChild(galleryBtn);
-        fragment.appendChild(nasBtn);
+            // Special icons
+            const galleryBtn = this._createIcon({ title: 'Gallery', url: '#gallery' });
+            const nasBtn = this._createIcon({ title: 'NAS', url: '#nas' });
+            fragment.appendChild(galleryBtn);
+            fragment.appendChild(nasBtn);
 
-        // Custom links (non-NAS)
-        this.state.customLinks
-            .filter(link => !link.isNas)
-            .forEach(link => {
-                const icon = this._createIcon(link);
-                fragment.appendChild(icon);
-            });
-
-        this.dom.iconsContainer.appendChild(fragment);
-
-        // Top sites (appended asynchronously)
-        chrome.topSites.get(sites => {
-            const topSitesFragment = document.createDocumentFragment();
-            const customUrls = new Set(this.state.customLinks.map(l => l.url));
-            
-            sites
-                .filter(site => !customUrls.has(site.url))
-                .slice(0, 8)
-                .forEach(site => {
-                    const icon = this._createIcon(site);
-                    topSitesFragment.appendChild(icon);
+            // Custom links (non-NAS)
+            this.state.customLinks
+                .filter(link => !link.isNas)
+                .forEach(link => {
+                    const icon = this._createIcon(link);
+                    fragment.appendChild(icon);
                 });
 
-            this.dom.iconsContainer.appendChild(topSitesFragment);
-            this._updateIconNav();
+            this.dom.iconsContainer.appendChild(fragment);
+
+            // Top sites (appended asynchronously)
+            chrome.topSites.get(sites => {
+                const topSitesFragment = document.createDocumentFragment();
+                const customUrls = new Set(this.state.customLinks.map(l => l.url));
+                
+                sites
+                    .filter(site => !customUrls.has(site.url))
+                    .forEach(site => {
+                        const icon = this._createIcon(site);
+                        topSitesFragment.appendChild(icon);
+                    });
+
+                this.dom.iconsContainer.appendChild(topSitesFragment);
+                this._updateIconNav();
+                resolve();
+            });
         });
     }
     
@@ -145,7 +156,11 @@ class App {
             label.style.visibility = "hidden";
         });
         
-        if (url === '#gallery') {
+        const customIcon = this.state.customIcons[url];
+        if (customIcon) {
+            img.style.backgroundImage = `url(${customIcon})`;
+            img.style.backgroundSize = 'cover';
+        } else if (url === '#gallery') {
             img.style.backgroundImage = 'url(imgs/image-wallpaper-lib.000ee690.png)';
             img.style.backgroundSize = 'cover'
             link.dataset.action = 'toggle-gallery';
@@ -261,6 +276,57 @@ class App {
         this.dom.customLinksList.appendChild(fragment);
     }
 
+    _renderCustomIconSettingsGrid() {
+        this.dom.customIconsGrid.innerHTML = ''; // Clear immediately
+        const customUrls = new Set(this.state.customLinks.map(l => l.url));
+
+        const createSettingsIcon = ({ title, url }) => {
+            const iconClone = this.dom.iconTemplate.content.cloneNode(true);
+            const link = iconClone.querySelector('a.icon-item');
+            const img = iconClone.querySelector('i.icon-img');
+            const label = iconClone.querySelector('span.icon-label');
+            
+            link.removeAttribute('href');
+            link.setAttribute('role', 'button');
+            link.setAttribute('tabindex', '0');
+            link.dataset.url = url;
+            link.dataset.title = title;
+            label.textContent = title;
+            label.style.visibility = 'visible';
+            label.style.color = '#41484fff';
+
+            const customIconData = this.state.customIcons[url];
+            if (customIconData) {
+                img.style.backgroundImage = `url(${customIconData})`;
+                img.style.backgroundSize = 'cover';
+            } else {
+                try {
+                    const hostname = new URL(url).hostname;
+                    img.style.backgroundImage = `url(https://www.google.com/s2/favicons?sz=64&domain=${hostname})`;
+                } catch (e) {
+                    img.style.backgroundImage = 'url(imgs/icon-fallback.png)';
+                }
+            }
+            
+            return iconClone;
+        };
+
+        // Combine custom links with top sites before rendering
+        chrome.topSites.get(sites => {
+            const allIconData = [...this.state.customLinks];
+            const topSitesData = sites.filter(site => !customUrls.has(site.url));
+            const combinedData = [...allIconData, ...topSitesData];
+            
+            const settingsGridFragment = document.createDocumentFragment();
+            combinedData.forEach(iconData => {
+                settingsGridFragment.appendChild(createSettingsIcon(iconData));
+            });
+
+            this.dom.customIconsGrid.innerHTML = ''; // Ensure it's empty before append
+            this.dom.customIconsGrid.appendChild(settingsGridFragment);
+        });
+    }
+
     // --- EVENT HANDLERS ---
 
     _attachEventListeners() {
@@ -303,6 +369,13 @@ class App {
         // Settings - Custom Links
         this.dom.addLinkBtn.addEventListener('click', () => this._addCustomLink());
         this.dom.customLinksList.addEventListener('click', e => this._handleCustomLinkListClick(e));
+
+        // Settings - Custom Icons
+        this.dom.customIconsGrid.addEventListener('click', e => this._handleCustomIconGridClick(e));
+        this.dom.customIconEditCancelBtn.addEventListener('click', () => this._hideCustomIconEditSection());
+        this.dom.customIconEditSaveBtn.addEventListener('click', () => this._handleCustomIconSave());
+        this.dom.customIconEditRemoveBtn.addEventListener('click', () => this._handleCustomIconRemove());
+        this.dom.customIconEditFileInput.addEventListener('change', () => this._handleCustomIconFileSelect());
     }
     
     _handleSearch(useAlternate = false) {
@@ -431,6 +504,75 @@ class App {
         this._resetHideTimer();
     }
 
+    _handleCustomIconGridClick(e) {
+        const icon = e.target.closest('.icon-item');
+        if (icon && icon.dataset.url) {
+            const url = icon.dataset.url;
+            const title = icon.dataset.title;
+
+            this.dom.customIconEditSection.dataset.editingUrl = url;
+            this.dom.customIconEditTitle.textContent = `Customize: ${title}`;
+            this.dom.customIconEditRemoveBtn.style.display = this.state.customIcons[url] ? 'inline-block' : 'none';
+            this.dom.customIconEditUrlInput.value = '';
+            this.dom.customIconEditFileInput.value = '';
+            
+            this.dom.customIconEditSection.style.display = 'block';
+            this.dom.customIconEditSection.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+    }
+
+    async _handleCustomIconSave() {
+        const url = this.dom.customIconEditSection.dataset.editingUrl;
+        if (!url) return;
+    
+        const iconDataSource = this.dom.customIconEditUrlInput.value.trim();
+        
+        if (!iconDataSource) {
+            alert('Please provide an image URL or upload a file.');
+            return;
+        }
+
+        // A simple check for valid URL or data URI.
+        if (iconDataSource.startsWith('http://') || iconDataSource.startsWith('https://') || iconDataSource.startsWith('data:image')) {
+            this.state.customIcons[url] = iconDataSource;
+            await this._saveCustomIcons();
+            this._hideCustomIconEditSection();
+        } else {
+            alert('Please enter a valid image URL or choose a file.');
+        }
+    }
+    
+    async _handleCustomIconRemove() {
+        const url = this.dom.customIconEditSection.dataset.editingUrl;
+        if (url && this.state.customIcons[url]) {
+            delete this.state.customIcons[url];
+            await this._saveCustomIcons();
+        }
+        this._hideCustomIconEditSection();
+    }
+
+    _handleCustomIconFileSelect() {
+        const fileInput = this.dom.customIconEditFileInput;
+        const urlInput = this.dom.customIconEditUrlInput;
+    
+        if (fileInput.files && fileInput.files[0]) {
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                urlInput.value = e.target.result;
+            };
+    
+            reader.onerror = () => {
+                alert('Error reading file. Please try again.');
+                urlInput.value = '';
+            }
+            
+            reader.readAsDataURL(file);
+        }
+    }
+    
+
     // --- FEATURE LOGIC ---
 
     _startClock() {
@@ -486,9 +628,11 @@ class App {
         if (open) {
             this._renderSettings();
             this._renderCustomLinksList();
+            this._renderCustomIconSettingsGrid();
             this.dom.randomFromAllCheckbox.checked = this.state.settings.random_from_all_groups;
             this.dom.settingsPanel.classList.add('open');
         } else {
+            this._hideCustomIconEditSection();
             this.dom.settingsPanel.classList.remove('open');
         }
     }
@@ -649,10 +793,17 @@ class App {
         }
     }
 
+    _hideCustomIconEditSection() {
+        this.dom.customIconEditSection.style.display = 'none';
+        this.dom.customIconEditSection.dataset.editingUrl = '';
+        this.dom.customIconEditUrlInput.value = '';
+        this.dom.customIconEditFileInput.value = '';
+    }
+
     // --- SETTINGS & STATE ---
 
     async _loadState() {
-        return new Promise(resolve => {
+        const syncPromise = new Promise(resolve => {
             chrome.storage.sync.get({ ...this.state.settings, customLinks: [] }, result => {
                 const { customLinks, ...settings } = result;
                 this.state.settings = { ...this.state.settings, ...settings };
@@ -669,6 +820,15 @@ class App {
                 resolve();
             });
         });
+
+        const localPromise = new Promise(resolve => {
+            chrome.storage.local.get({ customIcons: {} }, result => {
+                this.state.customIcons = result.customIcons || {};
+                resolve();
+            });
+        });
+
+        await Promise.all([syncPromise, localPromise]);
     }
 
     _saveSettings() {
@@ -678,6 +838,34 @@ class App {
     _saveCustomLinks() {
         chrome.storage.sync.set({ customLinks: this.state.customLinks }, () => {
             this._renderIcons();
+        });
+    }
+
+    _saveCustomIcons() {
+        return new Promise(resolve => {
+            chrome.storage.local.set({ customIcons: this.state.customIcons }, async () => {
+                const wasNasVisible = this.state.nasIconsVisible;
+    
+                // If NAS icons were open, we must hide them to reset the state before the main render,
+                // which clears the container and invalidates the old icon elements.
+                if (wasNasVisible) {
+                    this._toggleNasIcons(); // This hides them and sets nasIconsVisible to false.
+                }
+    
+                // Render the main icons. This clears the container and lays the groundwork.
+                await this._renderIcons();
+                
+                // If they were originally visible, show them again (now refreshed with the new custom icon).
+                if (wasNasVisible) {
+                    this._toggleNasIcons(); // This shows them, as nasIconsVisible is now false.
+                }
+    
+                // Refresh the settings grid if it's open to reflect the changes.
+                if (this.dom.settingsPanel.classList.contains('open')) {
+                    this._renderCustomIconSettingsGrid();
+                }
+                resolve();
+            });
         });
     }
     

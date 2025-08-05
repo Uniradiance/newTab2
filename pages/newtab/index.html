@@ -105,6 +105,43 @@
                 </div>
                 <button id="add-group-btn" class="button">Add Group</button>
             </div>
+
+            <hr class="settings-divider">
+
+            <div class="settings-group">
+                <h3>Custom Icons</h3>
+                <p style="font-size: 0.8rem; color: #aaa; margin-top: -0.5rem; margin-bottom: 1rem;">Click an icon below
+                    to set a custom image.</p>
+                <div id="custom-icons-grid" class="icons-container"
+                    style="max-height: 220px; overflow-y: auto; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.08); flex-wrap: wrap; justify-content: flex-start; row-gap: 20px;">
+                    <!-- Icons for customization will be rendered here -->
+                </div>
+            </div>
+
+            <div id="custom-icon-edit-section" class="settings-group" style="display: none;">
+                <hr class="settings-divider">
+                <div class="settings-group-header" style="justify-content: space-between; align-items: center;">
+                    <h3 id="custom-icon-edit-title" style="margin: 0;">Customize Icon</h3>
+                    <button id="custom-icon-edit-cancel-btn" class="icon-btn" aria-label="Cancel Edit">
+                        <i class="icon-close"></i>
+                    </button>
+                </div>
+                <div class="form-item">
+                    <label for="custom-icon-edit-url-input">Image URL</label>
+                    <input type="url" id="custom-icon-edit-url-input" placeholder="https://example.com/icon.png">
+                </div>
+                <div class="form-item">
+                    <div>
+                        <label for="custom-icon-edit-file-input" class="file-upload-link">Choose a file...</label>
+                        <input type="file" id="custom-icon-edit-file-input" accept="image/*">
+                    </div>
+                </div>
+                <div class="dialog-actions" style="display: flex; justify-content: space-between; padding-top: 1rem;">
+                    <button id="custom-icon-edit-remove-btn" class="button button--danger">Remove Custom Icon</button>
+                    <button id="custom-icon-edit-save-btn" class="button">Save</button>
+                </div>
+            </div>
+
         </div>
     </aside>
 
