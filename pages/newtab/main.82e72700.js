@@ -79,9 +79,6 @@ class App {
         this._applySettings();
         this._renderBaseUI();
         this._attachEventListeners();
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./serviceWorker.js').catch(console.error);
-        }
     }
 
     // --- RENDER METHODS ---
