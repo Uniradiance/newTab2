@@ -1,13 +1,52 @@
 
 (() => {
   const CACHE_NAME = 'v3-dynamic-content'; // Bump version to trigger update
+  const DEFAULT_ICON = '/pages/newtab/imgs/unraid-icon.png'; // 默认图标路径
+
+  // 检查响应是否是图标请求
+  function isIconRequest(url) {
+    return url.includes('/favicon.') || // favicon
+           url.endsWith('.ico') ||      // .ico文件
+           url.endsWith('.png') ||      // .png文件
+           url.includes('favicon') ||    // 包含favicon的URL
+           url.includes('icon');         // 包含icon的URL
+  }
+
+  // 获取默认图标的响应
+  async function getDefaultIconResponse() {
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      let response = await cache.match(DEFAULT_ICON);
+      
+      if (!response) {
+        // 如果缓存中没有默认图标，尝试获取并缓存它
+        response = await fetch(DEFAULT_ICON);
+        if (response.ok) {
+          cache.put(DEFAULT_ICON, response.clone());
+        }
+      }
+      
+      return response;
+    } catch (error) {
+      console.error('获取默认图标失败:', error);
+      return null;
+    }
+  }
 
   // On install, the service worker is activated.
-  // Pre-caching of local extension files is not needed (and unsupported) as they are part of the package.
-  // We'll use skipWaiting to activate the new SW immediately.
   self.addEventListener('install', function (event) {
     console.log('ServiceWorker: install event in progress.');
-    event.waitUntil(self.skipWaiting());
+    // 预缓存默认图标
+    event.waitUntil(
+      Promise.all([
+        caches.open(CACHE_NAME).then(cache => 
+          cache.add(DEFAULT_ICON).catch(err => 
+            console.warn('默认图标预缓存失败:', err)
+          )
+        ),
+        self.skipWaiting()
+      ])
+    );
   });
 
   // On fetch, use a cache-first strategy for remote resources (like wallpapers and favicons).
@@ -19,35 +58,62 @@
 
     if (isCacheable) {
       event.respondWith(
-        caches.match(event.request)
-          .then(function (response) {
-            // If a response is found in cache, return it.
+        caches.match(event.request, {
+          ignoreSearch: false,  // 精确匹配 URL，包括查询参数
+          ignoreMethod: false,  // 精确匹配 HTTP 方法
+          ignoreVary: false     // 考虑 Vary 头
+        })
+        .then(async function (response) {
+          // 如果在缓存中找到响应，直接返回
+          if (response) {
+            return response;
+          }
+
+          try {
+            // 启动网络请求
+            const networkResponse = await fetch(event.request);
+              
+            // 检查响应是否成功
+            if (!networkResponse || !networkResponse.ok) {
+              throw new Error('网络响应无效');
+            }
+
+            // 克隆响应用于缓存
+            const responseToCache = networkResponse.clone();
+              
+            // 更新缓存
+            caches.open(CACHE_NAME)
+              .then(function (cache) {
+                cache.put(event.request, responseToCache);
+              })
+              .catch(function(err) {
+                console.warn('缓存更新失败:', err);
+              });
+
+            return networkResponse;
+          } catch (error) {
+            console.error('ServiceWorker: 网络请求失败:', event.request.url, error);
+            
+            // 如果有缓存的响应，返回缓存
             if (response) {
               return response;
             }
-
-            // If not in cache, fetch it from the network.
-            return fetch(event.request).then(
-              function (networkResponse) {
-                // Clone the response because it's a stream and can only be used once.
-                const responseToCache = networkResponse.clone();
-
-                caches.open(CACHE_NAME)
-                  .then(function (cache) {
-                    // Cache the newly fetched resource. This is runtime caching for wallpapers, etc.
-                    cache.put(event.request, responseToCache);
-                  });
-
-                // Return the network response to the page.
-                return networkResponse;
+            
+            // 如果是图标请求且失败了，返回默认图标
+            if (isIconRequest(event.request.url)) {
+              const defaultIconResponse = await getDefaultIconResponse();
+              if (defaultIconResponse) {
+                return defaultIconResponse;
               }
-            ).catch(function (error) {
-              console.error('ServiceWorker: Fetching failed:', event.request.url, error);
-              // If fetch fails (e.g., offline and not in cache), the request will fail.
-              // A fallback could be returned here if desired.
-              throw error;
-            });
-          })
+            }
+            
+            throw error;
+          }
+
+          // 如果有缓存，立即返回缓存的响应
+          // 同时在后台更新缓存（Stale-While-Revalidate 模式）
+          return response || fetchPromise;
+        })
       );
     }
     // For non-cacheable requests (e.g., local extension files), do nothing.
