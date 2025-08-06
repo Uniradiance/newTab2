@@ -1,156 +1,114 @@
 (() => {
-  const CACHE_NAME = 'v3-dynamic-content'; // Bump version to trigger update
+  const CACHE_NAME = 'v4-dynamic-content'; // Zwiększ wersję, aby wywołać aktualizację
   const DEFAULT_ICON_URL = chrome.runtime.getURL('pages/newtab/imgs/unraid-icon.png');
 
-  // 检查响应是否是图标请求
+  // Sprawdza, czy żądanie dotyczy ikony
   function isIconRequest(url) {
-    return url.includes('/favicon.') || // favicon
-           url.endsWith('.ico') ||      // .ico文件
-           url.endsWith('.png') ||      // .png文件
-           url.includes('favicon') ||    // 包含favicon的URL
-           url.includes('icon');         // 包含icon的URL
+    const lowercasedUrl = url.toLowerCase();
+    return lowercasedUrl.includes('/favicon.') ||
+           lowercasedUrl.endsWith('.ico') ||
+           lowercasedUrl.endsWith('.png') ||
+           lowercasedUrl.includes('favicon') ||
+           lowercasedUrl.includes('icon');
   }
 
-  // 获取默认图标的响应
+  // Pobiera domyślną odpowiedź z ikoną
   async function getDefaultIconResponse() {
     try {
-      // 直接从扩展包中加载默认图标
       const response = await fetch(DEFAULT_ICON_URL);
       if (!response.ok) {
-        throw new Error('默认图标加载失败');
+        throw new Error('Nie udało się załadować domyślnej ikony');
       }
       return response;
     } catch (error) {
-      console.error('获取默认图标失败:', error);
+      console.error('Nie udało się pobrać domyślnej ikony:', error);
       return null;
     }
   }
 
-  // On install, the service worker is activated.
-  self.addEventListener('install', function (event) {
-    console.log('ServiceWorker: install event in progress.');
-    // 直接跳过等待，激活新的 Service Worker
+  // Po instalacji Service Worker jest aktywowany.
+  self.addEventListener('install', (event) => {
+    console.log('ServiceWorker: zdarzenie instalacji w toku.');
     event.waitUntil(self.skipWaiting());
   });
 
-  // On fetch, use a cache-first strategy for remote resources (like wallpapers and favicons).
-  self.addEventListener('fetch', function (event) {
-    const isGet = event.request.method === 'GET';
-    // Only cache requests to http/https protocols (i.e., network requests).
-    // This avoids trying to cache chrome-extension:// URLs, which is not supported and not necessary.
-    const isCacheable = isGet && event.request.url.startsWith('http');
+  // Po aktywacji wyczyść stare pamięci podręczne.
+  self.addEventListener('activate', (event) => {
+    console.log('ServiceWorker: zdarzenie aktywacji w toku.');
+    event.waitUntil(
+      Promise.all([
+        self.clients.claim(),
+        caches.keys().then((cacheNames) => {
+          return Promise.all(
+            cacheNames.filter((cacheName) => cacheName !== CACHE_NAME)
+              .map((cacheName) => {
+                console.log('ServiceWorker: usuwanie starej pamięci podręcznej:', cacheName);
+                return caches.delete(cacheName);
+              })
+          );
+        })
+      ])
+    );
+  });
+
+  // Dla zdarzenia fetch użyj strategii "cache-first".
+  self.addEventListener('fetch', (event) => {
+    const { request } = event;
+    const isGet = request.method === 'GET';
+    const isCacheable = isGet && request.url.startsWith('http');
 
     if (isCacheable) {
       event.respondWith(
-        caches.match(event.request, {
-          ignoreSearch: false,  // 精确匹配 URL，包括查询参数
-          ignoreMethod: false,  // 精确匹配 HTTP 方法
-          ignoreVary: false     // 考虑 Vary 头
-        })
-        .then(async function (response) {
-          // 如果在缓存中找到响应，直接返回
-          if (response) {
-            return response;
+        caches.open(CACHE_NAME).then(async (cache) => {
+          // Najpierw spróbuj znaleźć odpowiedź w pamięci podręcznej
+          const cachedResponse = await cache.match(request);
+          if (cachedResponse) {
+            return cachedResponse;
           }
 
+          // Jeśli nie ma w pamięci podręcznej, spróbuj pobrać z sieci
           try {
-            // 启动网络请求
-            const networkResponse = await fetch(event.request);
-              
-            // 检查响应是否存在
-            if (!networkResponse) {
-              throw new Error('没有收到网络响应');
+            const networkResponse = await fetch(request);
+            // Jeśli odpowiedź jest poprawna, zapisz ją w pamięci podręcznej
+            if (networkResponse.ok) {
+              cache.put(request, networkResponse.clone());
             }
-
-            // 状态码大于等于 400 才认为是错误
-            if (networkResponse.status >= 400) {
-              throw new Error(`网络响应错误: ${networkResponse.status}`);
-            }
-
-            // 克隆响应用于缓存
-            const responseToCache = networkResponse.clone();
-              
-            // 更新缓存
-            caches.open(CACHE_NAME)
-              .then(function (cache) {
-                cache.put(event.request, responseToCache);
-              })
-              .catch(function(err) {
-                console.warn('缓存更新失败:', err);
-              });
-
             return networkResponse;
           } catch (error) {
-            console.error('ServiceWorker: 网络请求失败:', event.request.url, error);
-            
-            // 如果有缓存的响应，返回缓存
-            if (response) {
-              return response;
-            }
-            
-            // 如果是图标请求且失败了，返回默认图标
-            if (isIconRequest(event.request.url)) {
+            console.error('ServiceWorker: Błąd pobierania sieciowego:', request.url, error);
+
+            // Jeśli żądanie o ikonę nie powiodło się, zwróć domyślną ikonę
+            if (isIconRequest(request.url)) {
               const defaultIconResponse = await getDefaultIconResponse();
               if (defaultIconResponse) {
                 return defaultIconResponse;
               }
             }
             
+            // Rzuć błąd, aby zasygnalizować, że zasób jest niedostępny
             throw error;
           }
-
-          // 如果有缓存，立即返回缓存的响应
-          // 同时在后台更新缓存（Stale-While-Revalidate 模式）
-          return response || fetchPromise;
         })
       );
     }
-    // For non-cacheable requests (e.g., local extension files), do nothing.
-    // The browser will handle them normally by loading them from the extension package.
   });
 
-  // On activate, clean up old caches and take control of clients.
-  self.addEventListener('activate', function (event) {
-    console.log('ServiceWorker: activate event in progress.');
-    event.waitUntil(
-      Promise.all([
-        // Take control of all open clients without waiting for a reload.
-        self.clients.claim(),
-        // Clean up old caches.
-        caches.keys().then(function (cacheNames) {
-          return Promise.all(
-            cacheNames.filter(function (cacheName) {
-              // Delete any cache that is not our current one.
-              return cacheName !== CACHE_NAME;
-            }).map(function (cacheName) {
-              console.log('ServiceWorker: deleting old cache:', cacheName);
-              return caches.delete(cacheName);
-            })
-          );
-        })
-      ])
-    );
-  });
-  
-  // In Manifest V3, 'browser_action' is replaced by 'action'.
+  // Obsługa kliknięcia ikony rozszerzenia
   chrome.action.onClicked.addListener(() => {
-    // When the action icon is clicked, open a new tab.
-    // An empty create call will open the page defined in 'chrome_url_overrides.newtab'.
     chrome.tabs.create({});
   });
 
+  // Otwórz nową kartę po instalacji
   chrome.runtime.onInstalled.addListener((details) => {
-    if (details.reason === "install") {
-      // On first install, open a new tab to show the extension's page.
+    if (details.reason === 'install') {
       chrome.tabs.create({});
     }
   });
 
-  // setUninstallURL is supported in V3. It's good practice to wrap this in a
-  // try-catch as it might not be available in all contexts (e.g. some browsers).
+  // Ustaw URL deinstalacji
   try {
     chrome.runtime.setUninstallURL('');
   } catch (e) {
-    console.error('Setting uninstall URL failed:', e);
+    console.error('Ustawienie adresu URL deinstalacji nie powiodło się:', e);
   }
 })();
