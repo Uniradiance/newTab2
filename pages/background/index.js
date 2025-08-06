@@ -1,6 +1,6 @@
 (() => {
   const CACHE_NAME = 'v3-dynamic-content'; // Bump version to trigger update
-  const DEFAULT_ICON = '../newtab/imgs/unraid-icon.png'; // 默认图标路径
+  const DEFAULT_ICON_URL = chrome.runtime.getURL('pages/newtab/imgs/unraid-icon.png');
 
   // 检查响应是否是图标请求
   function isIconRequest(url) {
@@ -14,17 +14,11 @@
   // 获取默认图标的响应
   async function getDefaultIconResponse() {
     try {
-      const cache = await caches.open(CACHE_NAME);
-      let response = await cache.match(DEFAULT_ICON);
-      
-      if (!response) {
-        // 如果缓存中没有默认图标，尝试获取并缓存它
-        response = await fetch(DEFAULT_ICON);
-        if (response.ok) {
-          cache.put(DEFAULT_ICON, response.clone());
-        }
+      // 直接从扩展包中加载默认图标
+      const response = await fetch(DEFAULT_ICON_URL);
+      if (!response.ok) {
+        throw new Error('默认图标加载失败');
       }
-      
       return response;
     } catch (error) {
       console.error('获取默认图标失败:', error);
@@ -35,6 +29,7 @@
   // On install, the service worker is activated.
   self.addEventListener('install', function (event) {
     console.log('ServiceWorker: install event in progress.');
+    // 直接跳过等待，激活新的 Service Worker
     event.waitUntil(self.skipWaiting());
   });
 
@@ -62,9 +57,14 @@
             // 启动网络请求
             const networkResponse = await fetch(event.request);
               
-            // 检查响应是否成功
-            if (!networkResponse || !networkResponse.ok) {
-              throw new Error('网络响应无效');
+            // 检查响应是否存在
+            if (!networkResponse) {
+              throw new Error('没有收到网络响应');
+            }
+
+            // 状态码大于等于 400 才认为是错误
+            if (networkResponse.status >= 400) {
+              throw new Error(`网络响应错误: ${networkResponse.status}`);
             }
 
             // 克隆响应用于缓存
