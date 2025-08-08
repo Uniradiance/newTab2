@@ -157,7 +157,6 @@ class App {
         const customIcon = this.state.customIcons[url];
         if (customIcon) {
             img.style.backgroundImage = `url(${customIcon})`;
-            img.style.backgroundSize = 'cover';
         } else if (url === '#gallery') {
             img.style.backgroundImage = 'url(imgs/image-wallpaper-lib.000ee690.png)';
             img.style.backgroundSize = 'cover'
