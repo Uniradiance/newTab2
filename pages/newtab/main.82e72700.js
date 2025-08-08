@@ -169,7 +169,30 @@ class App {
         } else {
             try {
                 const hostname = new URL(url).hostname;
-                img.style.backgroundImage = `url(https://www.google.com/s2/favicons?sz=64&domain=${hostname})`;
+                const faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain=${hostname}`;
+
+                // 加载并缓存图标
+                fetch(faviconUrl)
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            const base64data = reader.result;
+                            this.state.customIcons[url] = base64data;
+
+                            // 清理未使用的图标缓存
+                            this._cleanupUnusedIcons();
+
+                            this._saveCustomIcons();
+                            // 更新图标显示
+                            img.style.backgroundImage = `url(${base64data})`;
+                        };
+                        reader.readAsDataURL(blob);
+                    })
+                    .catch(error => {
+                        console.error(`Failed to cache favicon for ${url}:`, error);
+                    });
+
             } catch (error) {
                 console.error(`Invalid URL for icon: ${url}`, error);
                 img.style.backgroundImage = 'url(imgs/icon-fallback.png)';
@@ -298,12 +321,7 @@ class App {
                 img.style.backgroundImage = `url(${customIconData})`;
                 img.style.backgroundSize = 'cover';
             } else {
-                try {
-                    const hostname = new URL(url).hostname;
-                    img.style.backgroundImage = `url(https://www.google.com/s2/favicons?sz=64&domain=${hostname})`;
-                } catch (e) {
-                    img.style.backgroundImage = 'url(imgs/icon-fallback.png)';
-                }
+                img.style.backgroundImage = 'url(imgs/icon-fallback.png)';
             }
 
             return iconClone;
@@ -428,7 +446,7 @@ class App {
             // Throttle to prevent rapid firing. The duration should be enough for the smooth scroll animation to feel right.
             setTimeout(() => {
                 this.isIconScrolling = false;
-            }, 400); 
+            }, 400);
         }
     }
 
@@ -666,7 +684,7 @@ class App {
             this.state.nasLinks = [];
         } else {
             const hardcodedNasLinks = [];
-    
+
             const customNasLinks = this.state.customLinks.filter(link => link.isNas);
             const customUrls = new Set(customNasLinks.map(link => link.url));
 
@@ -816,6 +834,31 @@ class App {
         this.dom.customIconEditSection.dataset.editingUrl = '';
         this.dom.customIconEditUrlInput.value = '';
         this.dom.customIconEditFileInput.value = '';
+    }
+
+    _cleanupUnusedIcons() {
+        // 收集所有当前使用的 URL
+        const activeUrls = new Set();
+
+        // 添加自定义链接的 URL
+        this.state.customLinks.forEach(link => {
+            if (!link.isNas) { activeUrls.add(link.url) }
+        });
+
+
+        // 添加 Top Sites 的 URL（异步获取）
+        chrome.topSites.get(sites => {
+            sites.forEach(site => activeUrls.add(site.url));
+
+            // 检查并删除未使用的图标
+            Object.keys(this.state.customIcons).forEach(iconUrl => {
+                if (!activeUrls.has(iconUrl) &&
+                    iconUrl !== '#gallery' &&
+                    iconUrl !== '#nas') {
+                    delete this.state.customIcons[iconUrl];
+                }
+            });
+        });
     }
 
     // --- SETTINGS & STATE ---

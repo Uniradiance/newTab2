@@ -28,7 +28,7 @@
     event.waitUntil(self.skipWaiting());
   });
 
-  self.addEventListener('activate', (event) => {
+self.addEventListener('activate', (event) => {
     console.log('ServiceWorker: activate event in progress.');
     event.waitUntil(
       Promise.all([
@@ -43,44 +43,33 @@
         })
       ])
     );
-  });
+	});
 
-  self.addEventListener('fetch', (event) => {
-    const { request } = event;
-    const isGet = request.method === 'GET';
-    const isCacheable = isGet && request.url.startsWith('http');
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const isGet = request.method === 'GET';
+  const isCacheable = isGet && request.url.startsWith('http');
 
-    if (isCacheable) {
-      event.respondWith(
-        caches.open(CACHE_NAME).then(async (cache) => {
-          const cachedResponse = await cache.match(request);
-          if (cachedResponse) {
-            return cachedResponse;
-          }
+  if (isCacheable) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cachedResponse = await cache.match(request);
 
-          try {
-            const networkResponse = await fetch(request);
-            if (networkResponse.ok) {
-              cache.put(request, networkResponse.clone());
-            }
-            return networkResponse;
-          } catch (error) {
-            
-            console.error('ServiceWorker: 网络请求失败:', event.request.url, error);
-
+        const networkResponsePromise = fetch(request).then((networkResponse) => {
+          cache.put(request, networkResponse.clone());
+          return networkResponse;
+        }).catch(error => {
+            console.error('ServiceWorker: Błąd pobierania sieciowego:', request.url, error);
             if (isIconRequest(request.url)) {
-              const defaultIconResponse = await getDefaultIconResponse();
-              if (defaultIconResponse) {
-                return defaultIconResponse;
-              }
+              return getDefaultIconResponse();
             }
-            
-            throw error;
-          }
-        })
-      );
-    }
-  });
+        });
+
+        return cachedResponse || networkResponsePromise;
+      })
+    );
+  }
+});
 
   chrome.action.onClicked.addListener(() => {
     chrome.tabs.create({});
@@ -88,13 +77,13 @@
 
   chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === 'install') {
+      try {
+        chrome.runtime.setUninstallURL('');
+        console.log('Uninstall URL set successfully.');
+      } catch (e) {
+        console.error('Ustawienie adresu URL deinstalacji nie powiodło się:', e);
+      }
       chrome.tabs.create({});
     }
   });
-
-  try {
-    chrome.runtime.setUninstallURL('');
-  } catch (e) {
-    console.error('Setting uninstall URL failed:', e);
-  }
 })();
