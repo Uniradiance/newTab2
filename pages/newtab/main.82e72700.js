@@ -318,7 +318,6 @@ class App {
             const customIconData = this.state.customIcons[url];
             if (customIconData) {
                 img.style.backgroundImage = `url(${customIconData})`;
-                img.style.backgroundSize = 'cover';
             } else {
                 img.style.backgroundImage = 'url(imgs/icon-fallback.png)';
             }
