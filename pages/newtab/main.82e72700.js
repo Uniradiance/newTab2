@@ -170,27 +170,29 @@ class App {
                 const hostname = new URL(url).hostname;
                 const faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain=${hostname}`;
 
-                // 加载并缓存图标
-                fetch(faviconUrl)
-                    .then(response => response.blob())
-                    .then(blob => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                            const base64data = reader.result;
-                            this.state.customIcons[url] = base64data;
+                // 加载并缓存图标（如果已缓存则直接使用）
+                if (this.state.customIcons[url]) {
+                    img.style.backgroundImage = `url(${this.state.customIcons[url]})`;
+                } else {
+                    fetch(faviconUrl)
+                        .then(response => response.blob())
+                        .then(blob => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                                const base64data = reader.result;
+                                this.state.customIcons[url] = base64data;
 
-                            // 清理未使用的图标缓存
-                            this._cleanupUnusedIcons();
-
-                            this._saveCustomIcons();
-                            // 更新图标显示
-                            img.style.backgroundImage = `url(${base64data})`;
-                        };
-                        reader.readAsDataURL(blob);
-                    })
-                    .catch(error => {
-                        console.error(`Failed to cache favicon for ${url}:`, error);
-                    });
+                                // 只在设置面板关闭时才触发保存，避免循环刷新
+                                if (!this.dom.settingsPanel.classList.contains('open')) {
+                                    img.style.backgroundImage = `url(${base64data})`;
+                                }
+                            };
+                            reader.readAsDataURL(blob);
+                        })
+                        .catch(error => {
+                            console.error(`Failed to cache favicon for ${url}:`, error);
+                        });
+                }
 
             } catch (error) {
                 console.error(`Invalid URL for icon: ${url}`, error);
